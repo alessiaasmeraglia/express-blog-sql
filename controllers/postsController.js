@@ -10,6 +10,42 @@ async function index(req, res, next) {
     }
 }
 
+async function show(req, res, next) {
+    try {
+        const { id } = req.params;
+
+        const [posts] = await connection.query(
+            'SELECT * FROM posts WHERE id = ?',
+            [id]
+        );
+
+        if (posts.length === 0) {
+            return res.status(404).json({
+                error: 'Post non trovato',
+            });
+        }
+
+        const [tags] = await connection.query(
+            `
+        SELECT tags.*
+        FROM tags
+        JOIN post_tag
+         ON tags.id = post_tag.tag_id
+        WHERE post_tag.post_id = ?
+      `,
+            [id]
+        );
+
+        const post = posts[0];
+        post.tags = tags;
+
+        res.json(posts[0]);
+    } catch (error) {
+        next(error);
+    }
+}
+
+
 async function destroy(req, res, next) {
     try {
         const { id } = req.params;
@@ -38,5 +74,6 @@ async function destroy(req, res, next) {
 
 export default {
     index,
+    show,
     destroy
 };
