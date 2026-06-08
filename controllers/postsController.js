@@ -45,6 +45,57 @@ async function show(req, res, next) {
     }
 }
 
+async function store(req, res, next) {
+    try {
+        const { title, content, image, tags } = req.body;
+
+        const [result] = await connection.query(
+            `
+        INSERT INTO posts (title, content, image)
+        VALUES (?, ?, ?)
+      `,
+            [title, content, image]
+        );
+
+        const newPostId = result.insertId;
+
+        if (tags && tags.length > 0) {
+            const values = tags.map((tagId) => [newPostId, tagId]);
+
+            await connection.query(
+                `
+          INSERT INTO post_tag (post_id, tag_id)
+          VALUES ?
+        `,
+                [values]
+            );
+        }
+
+        const [posts] = await connection.query(
+            'SELECT * FROM posts WHERE id = ?',
+            [newPostId]
+        );
+
+        const [postTags] = await connection.query(
+            `
+        SELECT tags.*
+        FROM tags
+        JOIN post_tag
+          ON tags.id = post_tag.tag_id
+        WHERE post_tag.post_id = ?
+      `,
+            [newPostId]
+        );
+
+        const post = posts[0];
+        post.tags = postTags;
+
+        res.status(201).json(post);
+    } catch (error) {
+        next(error);
+    }
+}
+
 
 async function destroy(req, res, next) {
     try {
@@ -75,5 +126,6 @@ async function destroy(req, res, next) {
 export default {
     index,
     show,
+    store,
     destroy
 };
